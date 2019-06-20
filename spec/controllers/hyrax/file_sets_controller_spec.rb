@@ -68,8 +68,14 @@ RSpec.describe Hyrax::FileSetsController do
     end
 
     describe "#update" do
+      let(:parent) do
+        create(:work, :public, user: user)
+      end
       let(:file_set) do
-        create(:file_set, user: user)
+        create(:file_set, user: user).tap do |file_set|
+          parent.ordered_members << file_set
+          parent.save!
+        end
       end
 
       context "when updating metadata" do
@@ -184,8 +190,14 @@ RSpec.describe Hyrax::FileSetsController do
       end
 
       context "when there's an error saving" do
+        let(:parent) do
+          create(:work, :public, user: user)
+        end
         let(:file_set) do
-          create(:file_set, user: user)
+          create(:file_set, user: user).tap do |file_set|
+            parent.ordered_members << file_set
+            parent.save!
+          end
         end
 
         before do
@@ -227,8 +239,23 @@ RSpec.describe Hyrax::FileSetsController do
     end
 
     describe "#show" do
+
+      let(:work) do
+        create(:generic_work, :public,
+               title: ['test title'],
+               user: user)
+      end
+
       let(:file_set) do
-        create(:file_set, title: ['test file'], user: user)
+        create(:file_set, title: ['test file'], user: user).tap do |file_set|
+          work.ordered_members << file_set
+          work.save!
+        end
+      end
+
+      before do
+        work.ordered_members << file_set
+        work.save!
       end
 
       context "without a referer" do
@@ -246,11 +273,6 @@ RSpec.describe Hyrax::FileSetsController do
       end
 
       context "with a referer" do
-        let(:work) do
-          create(:generic_work, :public,
-                 title: ['test title'],
-                 user: user)
-        end
 
         before do
           request.env['HTTP_REFERER'] = 'http://test.host/foo'
@@ -273,9 +295,19 @@ RSpec.describe Hyrax::FileSetsController do
 
     context 'someone elses (public) files' do
       let(:creator) { create(:user, email: 'archivist1@example.com') }
-      let(:public_file_set) { create(:file_set, user: creator, read_groups: ['public']) }
+      let(:parent) do
+        create(:work, :public, user: creator, read_groups: ['public'])
+      end
+      let(:public_file_set) do
+        create(:file_set, user: creator, read_groups: ['public']).tap do |file_set|
+          parent.ordered_members << file_set
+          parent.save!
+        end
+      end
 
-      before { sign_in user }
+      before do
+        sign_in user
+      end
 
       describe '#edit' do
         it 'gives me the unauthorized page' do
@@ -296,8 +328,15 @@ RSpec.describe Hyrax::FileSetsController do
   end
 
   context 'when not signed in' do
+    let(:work) { create(:work, :public, user: user) }
     let(:private_file_set) { create(:file_set) }
     let(:public_file_set) { create(:file_set, read_groups: ['public']) }
+
+    before do
+      work.ordered_members << private_file_set
+      work.ordered_members << public_file_set
+      work.save!
+    end
 
     describe '#edit' do
       it 'requires login' do
@@ -318,5 +357,62 @@ RSpec.describe Hyrax::FileSetsController do
         expect(response).to be_success
       end
     end
+
+    describe '#show' do
+      let(:parent_work_active) do
+        create(:work, :public, state: ::RDF::URI('http://fedora.info/definitions/1/0/access/ObjState#active') )
+      end
+      let(:file_set_active) do
+        create(:file_set, read_groups: ['public']).tap do |file_set|
+          parent_work_active.ordered_members << file_set
+          parent_work_active.save!
+        end
+      end
+      let(:parent_work_inactive) do
+        create(:work, :public, state: ::RDF::URI('http://fedora.info/definitions/1/0/access/ObjState#inactive') )
+      end
+      let(:file_set_inactive) do
+        create(:file_set, read_groups: ['public']).tap do |file_set|
+          parent_work_inactive.ordered_members << file_set
+          parent_work_inactive.save!
+        end
+      end
+
+      it "shows active parent" do
+        expect(controller).to receive(:additional_response_formats).with(ActionController::MimeResponds::Collector)
+        get :show, params: { id: file_set_active }
+        expect(response).to be_success
+      end
+
+      it "shows not currently available for inactive parent" do
+        get :show, params: { id: file_set_inactive }
+        expect(response).to render_template 'unavailable'
+        expect(flash[:notice]).to eq 'The file is not currently available because its parent work has not yet completed the approval process'
+        expect(response.status).to eq 401
+      end
+    end
+
   end
+
+  describe 'integration test for suppressed documents' do
+    let(:work) do
+      create(:work, :public, state: Vocab::FedoraResourceStatus.inactive)
+    end
+    let(:file_set) { create(:file_set) }
+
+    before do
+      work.ordered_members << file_set
+      work.save!
+      create(:sipity_entity, proxy_for_global_id: work.to_global_id.to_s)
+    end
+
+    it 'renders the unavailable message because it is in workflow' do
+      get :show, params: { id: file_set }
+      expect(response.code).to eq '401'
+      expect(response).to render_template(:unavailable)
+      expect(assigns[:presenter]).to be_instance_of Hyrax::FileSetPresenter
+      expect(flash[:notice]).to eq 'The file is not currently available because its parent work has not yet completed the approval process'
+    end
+  end
+
 end

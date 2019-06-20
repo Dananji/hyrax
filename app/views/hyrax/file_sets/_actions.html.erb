@@ -1,6 +1,6 @@
-<% if file_set.user_can_perform_any_action? %>
+<% no_workflow_restrictions = !( @presenter.respond_to?( :workflow_restriction? ) and @presenter.workflow_restriction? ) %>
+<% if file_set.user_can_perform_any_action? && no_workflow_restrictions %>
   <div class="btn-group">
-
     <button class="btn btn-default dropdown-toggle" data-toggle="dropdown" type="button" id="dropdownMenu_<%= file_set.id %>" aria-haspopup="true" aria-expanded="false">
       <span class="sr-only">Press to </span>
       <%= t('.header') %>

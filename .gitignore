@@ -22,6 +22,9 @@ tmtags
 \#*
 .\#*
 
+## RubyMine
+.idea
+
 ## VIM
 *.sw[pon]
 

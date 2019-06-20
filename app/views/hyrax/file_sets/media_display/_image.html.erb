@@ -1,4 +1,5 @@
-<% if Hyrax.config.display_media_download_link? && can?(:download, file_set.id) %>
+<% no_workflow_restrictions = !( @presenter.respond_to?( :workflow_restriction? ) and @presenter.workflow_restriction? ) %>
+<% if Hyrax.config.display_media_download_link? && can?(:download, file_set.id) && no_workflow_restrictions %>
     <div>
       <h2 class="sr-only"><%= t('hyrax.file_set.show.downloadable_content.heading') %></h2>
       <%= image_tag thumbnail_url(file_set),

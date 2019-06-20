@@ -3,7 +3,8 @@
     <%= link_to t('.analytics'), @presenter.stats_path, id: 'stats', class: 'btn btn-default' %>
   <% end %>
 
-  <% if @presenter.editor? %>
+  <% no_workflow_restrictions = !( @presenter.respond_to?( :workflow_restriction? ) and @presenter.workflow_restriction? ) %>
+  <% if @presenter.editor? && no_workflow_restrictions %>
       <%= link_to t(".edit_this", type: @presenter.human_readable_type), edit_polymorphic_path([main_app, @presenter]),
                   class: 'btn btn-default' %>
       <%= link_to t(".delete_this", type: @presenter.human_readable_type), [main_app, @presenter],

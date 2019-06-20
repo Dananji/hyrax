@@ -2,7 +2,8 @@
   <button class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown">Select <span class="caret"></span>
   </button>
   <ul class="dropdown-menu dropdown-menu-right">
-    <% if can? :edit, document %>
+    <% no_workflow_restrictions = !( @presenter.respond_to?( :workflow_restriction? ) and @presenter.workflow_restriction? ) %>
+    <% if can?( :edit, document ) && no_workflow_restrictions %>
       <li>
         <%= link_to [main_app, :edit, document],
                     class: "itemicon itemedit",

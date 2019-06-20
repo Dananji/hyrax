@@ -1,5 +1,6 @@
-<% if Hyrax.config.display_media_download_link? %>
-    <div>
+<% no_workflow_restrictions = !( @presenter.respond_to?( :workflow_restriction? ) and @presenter.workflow_restriction? ) %>
+<% if Hyrax.config.display_media_download_link? && no_workflow_restrictions %>
+  <div>
       <h2 class="sr-only"><%= t('hyrax.file_set.show.downloadable_content.heading') %></h2>
       <audio controls="controls" class="audiojs" style="width:100%" controlsList="nodownload" preload="auto">
         <source src="<%= hyrax.download_path(file_set, file: 'ogg') %>" type="audio/ogg" />
